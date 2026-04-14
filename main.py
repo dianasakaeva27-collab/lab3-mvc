@@ -8,69 +8,77 @@ from model import Model
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        
         self.model = Model()
         self.model.add_observer(self.update_ui)
 
-        self.setWindowTitle("MVC: A <= B <= C")
-        self.setGeometry(200, 200, 500, 300)
+        self.setWindowTitle("A <= B <= C")
+        self.setGeometry(200, 200, 550, 250)
 
         central = QWidget()
         self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
+        main_layout = QVBoxLayout(central)
 
-        # Блок A
-        layout.addWidget(QLabel("A:"))
-        a_layout = QHBoxLayout()
+        # Заголовок
+        title_label = QLabel("A <= B <= C")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold; margin: 10px;")
+        main_layout.addWidget(title_label)
+
+        # Буквы A, B, C
+        letters_layout = QHBoxLayout()
+        letters_layout.addWidget(QLabel("     A     "))
+        letters_layout.addWidget(QLabel("     B     "))
+        letters_layout.addWidget(QLabel("     C     "))
+        main_layout.addLayout(letters_layout)
+
+        # Поля ввода
+        edits_layout = QHBoxLayout()
         self.a_edit = QLineEdit()
-        self.a_spin = QSpinBox()
-        self.a_slider = QSlider(Qt.Horizontal)
-        a_layout.addWidget(self.a_edit)
-        a_layout.addWidget(self.a_spin)
-        a_layout.addWidget(self.a_slider)
-        layout.addLayout(a_layout)
-
-        # Блок B
-        layout.addWidget(QLabel("B:"))
-        b_layout = QHBoxLayout()
         self.b_edit = QLineEdit()
-        self.b_spin = QSpinBox()
-        self.b_slider = QSlider(Qt.Horizontal)
-        b_layout.addWidget(self.b_edit)
-        b_layout.addWidget(self.b_spin)
-        b_layout.addWidget(self.b_slider)
-        layout.addLayout(b_layout)
-
-        # Блок C
-        layout.addWidget(QLabel("C:"))
-        c_layout = QHBoxLayout()
         self.c_edit = QLineEdit()
-        self.c_spin = QSpinBox()
-        self.c_slider = QSlider(Qt.Horizontal)
-        c_layout.addWidget(self.c_edit)
-        c_layout.addWidget(self.c_spin)
-        c_layout.addWidget(self.c_slider)
-        layout.addLayout(c_layout)
+        for edit in [self.a_edit, self.b_edit, self.c_edit]:
+            edit.setAlignment(Qt.AlignCenter)
+            edits_layout.addWidget(edit)
+        main_layout.addLayout(edits_layout)
 
-        # Настройка диапазонов
+        # Счётчики
+        spins_layout = QHBoxLayout()
+        self.a_spin = QSpinBox()
+        self.b_spin = QSpinBox()
+        self.c_spin = QSpinBox()
         for spin in [self.a_spin, self.b_spin, self.c_spin]:
             spin.setRange(0, 100)
+            spin.setAlignment(Qt.AlignCenter)
+            spins_layout.addWidget(spin)
+        main_layout.addLayout(spins_layout)
+
+        # Ползунки
+        sliders_layout = QHBoxLayout()
+        self.a_slider = QSlider(Qt.Horizontal)
+        self.b_slider = QSlider(Qt.Horizontal)
+        self.c_slider = QSlider(Qt.Horizontal)
         for slider in [self.a_slider, self.b_slider, self.c_slider]:
             slider.setRange(0, 100)
+            sliders_layout.addWidget(slider)
+        main_layout.addLayout(sliders_layout)
 
-        # Подключение сигналов
+        # ===== ПОДКЛЮЧЕНИЕ СИГНАЛОВ =====
+        # A
         self.a_edit.textChanged.connect(lambda t: self._on_text_changed('a', t))
-        self.a_spin.valueChanged.connect(lambda v: self.model.set_a(v))
-        self.a_slider.valueChanged.connect(lambda v: self.model.set_a(v))
+        self.a_spin.valueChanged.connect(self.model.set_a)
+        self.a_slider.valueChanged.connect(self.model.set_a)
 
+        # B (ВАЖНО! Проверь эти строки)
         self.b_edit.textChanged.connect(lambda t: self._on_text_changed('b', t))
-        self.b_spin.valueChanged.connect(lambda v: self.model.set_b(v))
-        self.b_slider.valueChanged.connect(lambda v: self.model.set_b(v))
+        self.b_spin.valueChanged.connect(self.model.set_b)
+        self.b_slider.valueChanged.connect(self.model.set_b)  # ← ЭТО САМОЕ ВАЖНОЕ
 
+        # C
         self.c_edit.textChanged.connect(lambda t: self._on_text_changed('c', t))
-        self.c_spin.valueChanged.connect(lambda v: self.model.set_c(v))
-        self.c_slider.valueChanged.connect(lambda v: self.model.set_c(v))
+        self.c_spin.valueChanged.connect(self.model.set_c)
+        self.c_slider.valueChanged.connect(self.model.set_c)
 
-        # Загрузка и обновление
         self.model.load()
         self.update_ui()
 
@@ -87,7 +95,8 @@ class MainWindow(QMainWindow):
             pass
 
     def update_ui(self):
-        # Блокируем сигналы, чтобы избежать зацикливания
+        """Обновляет все элементы управления"""
+        # Блокируем сигналы
         self.a_edit.blockSignals(True)
         self.a_spin.blockSignals(True)
         self.a_slider.blockSignals(True)
