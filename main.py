@@ -1,19 +1,69 @@
 import sys
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QLabel, QLineEdit, QSpinBox, QSlider)
 from PyQt5.QtCore import Qt
 from model import Model
 
 
+class LimitedSlider(QSlider):
+    """Ползунок, который останавливается на границах [min_limit, max_limit]."""
+    def __init__(self, orientation, parent=None):
+        super().__init__(orientation, parent)
+        self._min_limit = 0
+        self._max_limit = 100
+        self.setRange(0, 100)
+    
+    def setLimits(self, min_val, max_val):
+        """Устанавливает границы, за которые нельзя выходить."""
+        self._min_limit = min_val
+        self._max_limit = max_val
+    
+    def sliderChange(self, change):
+        """Переопределяем метод изменения положения ползунка."""
+        if change == self.SliderValueChange:
+            value = self.value()
+            # Ограничиваем значение
+            if value < self._min_limit:
+                self.setValue(self._min_limit)
+            elif value > self._max_limit:
+                self.setValue(self._max_limit)
+        super().sliderChange(change)
+
+
+class LimitedSpinBox(QSpinBox):
+    """Счётчик, который останавливается на границах [min_limit, max_limit]."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._min_limit = 0
+        self._max_limit = 100
+        self.setRange(0, 100)
+    
+    def setLimits(self, min_val, max_val):
+        """Устанавливает границы, за которые нельзя выходить."""
+        self._min_limit = min_val
+        self._max_limit = max_val
+    
+    def fixup(self, input_str):
+        """Вызывается при вводе некорректного значения."""
+        try:
+            val = int(input_str)
+            if val < self._min_limit:
+                self.setValue(self._min_limit)
+            elif val > self._max_limit:
+                self.setValue(self._max_limit)
+        except:
+            pass
+        super().fixup(input_str)
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        
         self.model = Model()
         self.model.add_observer(self.update_ui)
 
-        self.setWindowTitle("A <= B <= C")
-        self.setGeometry(200, 200, 550, 250)
+        self.setWindowTitle("Form1")
+        self.setGeometry(200, 200, 500, 250)
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -22,63 +72,58 @@ class MainWindow(QMainWindow):
         # Заголовок
         title_label = QLabel("A <= B <= C")
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold; margin: 10px;")
         main_layout.addWidget(title_label)
 
-        # Буквы A, B, C
-        letters_layout = QHBoxLayout()
-        letters_layout.addWidget(QLabel("     A     "))
-        letters_layout.addWidget(QLabel("     B     "))
-        letters_layout.addWidget(QLabel("     C     "))
-        main_layout.addLayout(letters_layout)
-
-        # Поля ввода
-        edits_layout = QHBoxLayout()
+        # ===== СТРОКА ДЛЯ A =====
+        a_layout = QHBoxLayout()
         self.a_edit = QLineEdit()
-        self.b_edit = QLineEdit()
-        self.c_edit = QLineEdit()
-        for edit in [self.a_edit, self.b_edit, self.c_edit]:
-            edit.setAlignment(Qt.AlignCenter)
-            edits_layout.addWidget(edit)
-        main_layout.addLayout(edits_layout)
-
-        # Счётчики
-        spins_layout = QHBoxLayout()
         self.a_spin = QSpinBox()
-        self.b_spin = QSpinBox()
-        self.c_spin = QSpinBox()
-        for spin in [self.a_spin, self.b_spin, self.c_spin]:
-            spin.setRange(0, 100)
-            spin.setAlignment(Qt.AlignCenter)
-            spins_layout.addWidget(spin)
-        main_layout.addLayout(spins_layout)
-
-        # Ползунки
-        sliders_layout = QHBoxLayout()
         self.a_slider = QSlider(Qt.Horizontal)
-        self.b_slider = QSlider(Qt.Horizontal)
+        a_layout.addWidget(self.a_edit)
+        a_layout.addWidget(self.a_spin)
+        a_layout.addWidget(self.a_slider)
+        main_layout.addLayout(a_layout)
+
+        # ===== СТРОКА ДЛЯ B (с ограничивающими элементами) =====
+        b_layout = QHBoxLayout()
+        self.b_edit = QLineEdit()
+        self.b_spin = LimitedSpinBox()
+        self.b_slider = LimitedSlider(Qt.Horizontal)
+        b_layout.addWidget(self.b_edit)
+        b_layout.addWidget(self.b_spin)
+        b_layout.addWidget(self.b_slider)
+        main_layout.addLayout(b_layout)
+
+        # ===== СТРОКА ДЛЯ C =====
+        c_layout = QHBoxLayout()
+        self.c_edit = QLineEdit()
+        self.c_spin = QSpinBox()
         self.c_slider = QSlider(Qt.Horizontal)
-        for slider in [self.a_slider, self.b_slider, self.c_slider]:
+        c_layout.addWidget(self.c_edit)
+        c_layout.addWidget(self.c_spin)
+        c_layout.addWidget(self.c_slider)
+        main_layout.addLayout(c_layout)
+
+        # Настройка диапазонов (ВСЕ ОТ 0 ДО 100)
+        for spin in [self.a_spin, self.c_spin]:
+            spin.setRange(0, 100)
+        for slider in [self.a_slider, self.c_slider]:
             slider.setRange(0, 100)
-            sliders_layout.addWidget(slider)
-        main_layout.addLayout(sliders_layout)
 
-        # ===== ПОДКЛЮЧЕНИЕ СИГНАЛОВ =====
-        # A
+        # Подключение сигналов
         self.a_edit.textChanged.connect(lambda t: self._on_text_changed('a', t))
-        self.a_spin.valueChanged.connect(self.model.set_a)
-        self.a_slider.valueChanged.connect(self.model.set_a)
+        self.a_spin.valueChanged.connect(lambda v: self.model.set_a(v))
+        self.a_slider.valueChanged.connect(lambda v: self.model.set_a(v))
 
-        # B (ВАЖНО! Проверь эти строки)
         self.b_edit.textChanged.connect(lambda t: self._on_text_changed('b', t))
-        self.b_spin.valueChanged.connect(self.model.set_b)
-        self.b_slider.valueChanged.connect(self.model.set_b)  # ← ЭТО САМОЕ ВАЖНОЕ
+        self.b_spin.valueChanged.connect(lambda v: self.model.set_b(v))
+        self.b_slider.valueChanged.connect(lambda v: self.model.set_b(v))
 
-        # C
         self.c_edit.textChanged.connect(lambda t: self._on_text_changed('c', t))
-        self.c_spin.valueChanged.connect(self.model.set_c)
-        self.c_slider.valueChanged.connect(self.model.set_c)
+        self.c_spin.valueChanged.connect(lambda v: self.model.set_c(v))
+        self.c_slider.valueChanged.connect(lambda v: self.model.set_c(v))
 
+        # Загрузка и обновление
         self.model.load()
         self.update_ui()
 
@@ -95,7 +140,6 @@ class MainWindow(QMainWindow):
             pass
 
     def update_ui(self):
-        """Обновляет все элементы управления"""
         # Блокируем сигналы
         self.a_edit.blockSignals(True)
         self.a_spin.blockSignals(True)
@@ -107,18 +151,25 @@ class MainWindow(QMainWindow):
         self.c_spin.blockSignals(True)
         self.c_slider.blockSignals(True)
 
-        # Устанавливаем значения
+        # Устанавливаем значения A и C
         self.a_edit.setText(str(self.model.get_a()))
         self.a_spin.setValue(self.model.get_a())
         self.a_slider.setValue(self.model.get_a())
 
-        self.b_edit.setText(str(self.model.get_b()))
-        self.b_spin.setValue(self.model.get_b())
-        self.b_slider.setValue(self.model.get_b())
-
         self.c_edit.setText(str(self.model.get_c()))
         self.c_spin.setValue(self.model.get_c())
         self.c_slider.setValue(self.model.get_c())
+
+        # Устанавливаем ГРАНИЦЫ для B (а не диапазон!)
+        min_b = self.model.get_a()
+        max_b = self.model.get_c()
+        self.b_spin.setLimits(min_b, max_b)
+        self.b_slider.setLimits(min_b, max_b)
+
+        # Устанавливаем значение B
+        self.b_edit.setText(str(self.model.get_b()))
+        self.b_spin.setValue(self.model.get_b())
+        self.b_slider.setValue(self.model.get_b())
 
         # Разблокируем сигналы
         self.a_edit.blockSignals(False)
